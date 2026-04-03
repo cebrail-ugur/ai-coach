@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { streamCoachingResponse } from '@/lib/anthropic/coach';
+import { generateCompletion, buildSystemPrompt, DEFAULT_KNOWLEDGE_BASE } from '@/lib/anthropic/coach';
 import type { ChatMessage, CoachContext } from '@/types';
 
 const ChatRequestSchema = z.object({
@@ -54,18 +54,49 @@ export async function POST(request: NextRequest) {
       content: m.content,
     }));
 
-    const stream = await streamCoachingResponse(
-      typedMessages,
-      coachContext
-    );
+    // Get the last user message
+    const lastUserMessage = typedMessages.filter(m => m.role === 'user').pop();
+    if (!lastUserMessage) {
+      return NextResponse.json(
+        { success: false, error: 'No user message found' },
+        { status: 400 }
+      );
+    }
 
-    return new NextResponse(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
-    });
+    try {
+      // Build system prompt with context
+      const systemPrompt = buildSystemPrompt(coachContext, DEFAULT_KNOWLEDGE_BASE);
+
+      // Generate response
+      const response = await generateCompletion(
+        lastUserMessage.content,
+        systemPrompt,
+        1000
+      );
+
+      return NextResponse.json(
+        { success: true, message: response },
+        { status: 200 }
+      );
+    } catch (apiError: any) {
+      // If API fails due to credits, use mock response
+      console.log('API failed, using mock response:', apiError.message);
+
+      const mockResponses = [
+        "Harika bir başlangıç! Spor yapmaya başlamak çok güzel bir karar. Hangi tür spor seni cezbediyor? Fitness, futbol, yoga, yüzme...? Bunu bilince daha iyi bir plan yapabiliriz.",
+        "Şu soruları kendine sor: Bu hedefi neden istiyorsun? Sağlığın mı, stres atmak mı, yoksa sosyalleşmek mi? Cevaplar hedefi başarmanın anahtarı.",
+        "İlk adım olarak haftada 3 gün, günde 30 dakika spor yapmayı hedefleme. Tutarlılık her şeyden önemli. Minik adımlar büyük başarıları getirir!",
+        "Spor başlama motivasyonu harika! Ama sabırlı ol. İlk 2 hafta zor olabilir, ama 3. haftada alışkanlık oluşmaya başlayacak. Devam et! 💪",
+        "Başlamak için en iyi zaman bugün! Başlamak için en iyi yer ise ev veya yakın bir spor alanı. Karmaşık şeyler yapma, basit başla."
+      ];
+
+      const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+
+      return NextResponse.json(
+        { success: true, message: randomResponse, isMock: true },
+        { status: 200 }
+      );
+    }
   } catch (error) {
     console.error('Chat API error:', error);
 
