@@ -26,19 +26,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user profile
-    const { data: profile } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
-
     return NextResponse.json({
       success: true,
       user: {
         id: data.user.id,
         email: data.user.email,
-        profile,
       },
       session: data.session,
     });
