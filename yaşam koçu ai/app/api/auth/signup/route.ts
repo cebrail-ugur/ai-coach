@@ -35,22 +35,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create user profile
-    const { error: profileError } = await supabase
-      .from('users')
-      .insert([
-        {
-          id: authData.user.id,
-          email: authData.user.email,
-          full_name: fullName,
-        },
-      ]);
-
-    if (profileError) {
-      console.error('Profile creation error:', profileError);
-      // Continue anyway, user is registered
-    }
-
     return NextResponse.json(
       {
         success: true,
