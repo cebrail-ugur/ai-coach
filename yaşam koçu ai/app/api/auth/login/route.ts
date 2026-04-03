@@ -20,8 +20,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
+      console.error('Supabase login error:', error);
       return NextResponse.json(
-        { success: false, error: 'Email veya şifre yanlış' },
+        { success: false, error: `Giriş hatası: ${error.message}` },
         { status: 401 }
       );
     }
